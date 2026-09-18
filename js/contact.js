@@ -1,9 +1,7 @@
-```javascript
 /* ============================================
    CONTACT FORM
-   Formspree AJAX Submission
-   Immediate redirect to index.html after success
-   Destination: misganatd7@gmail.com
+   Validation, Formspree submission,
+   redirect, success/error toast notifications
 ============================================ */
 
 class ContactForm {
@@ -13,24 +11,19 @@ class ContactForm {
     if (!this.form) return;
 
     this.fields = {
-      name: {
-        input: document.getElementById('form-name'),
-        error: document.getElementById('form-name-error'),
-      },
-
-      email: {
-        input: document.getElementById('form-email'),
-        error: document.getElementById('form-email-error'),
-      },
-
-      message: {
-        input: document.getElementById('form-message'),
-        error: document.getElementById('form-message-error'),
-      },
+      name: document.getElementById('form-name'),
+      email: document.getElementById('form-email'),
+      message: document.getElementById('form-message')
     };
 
-    this.toast = null;
-    this.toastTimeout = null;
+    this.errors = {
+      name: document.getElementById('form-name-error'),
+      email: document.getElementById('form-email-error'),
+      message: document.getElementById('form-message-error')
+    };
+
+    this.submitButton = this.form.querySelector('button[type="submit"]');
+    this.buttonText = this.submitButton?.querySelector('.btn__text');
 
     this.init();
   }
@@ -40,54 +33,97 @@ class ContactForm {
   ============================================ */
 
   init() {
-    this.createToast();
-    this.bindEvents();
-  }
-
-  /* ============================================
-     CREATE TOAST
-  ============================================ */
-
-  createToast() {
-    this.toast = document.createElement('div');
-
-    this.toast.className = 'toast';
-    this.toast.setAttribute('role', 'alert');
-    this.toast.setAttribute('aria-live', 'polite');
-
-    document.body.appendChild(this.toast);
-  }
-
-  /* ============================================
-     BIND EVENTS
-  ============================================ */
-
-  bindEvents() {
     this.form.addEventListener('submit', (event) => {
       this.handleSubmit(event);
     });
 
-    Object.entries(this.fields).forEach(([fieldName, field]) => {
-      if (!field.input) return;
+    // Validate fields when the user leaves them
+    Object.keys(this.fields).forEach((fieldName) => {
+      const field = this.fields[fieldName];
 
-      field.input.addEventListener('blur', () => {
+      if (!field) return;
+
+      field.addEventListener('blur', () => {
         this.validateField(fieldName);
       });
 
-      field.input.addEventListener('input', () => {
-        this.clearError(fieldName);
+      field.addEventListener('input', () => {
+        this.clearFieldError(fieldName);
       });
     });
+
+    // Show success message after returning from Formspree
+    this.showSuccessFromRedirect();
   }
 
   /* ============================================
-     HANDLE FORM SUBMISSION
+     VALIDATION
   ============================================ */
 
-  async handleSubmit(event) {
-    event.preventDefault();
+  validateField(fieldName) {
+    const field = this.fields[fieldName];
 
-    /* Validate all fields */
+    if (!field) return false;
+
+    const value = field.value.trim();
+
+    switch (fieldName) {
+      case 'name':
+        if (!value) {
+          this.showFieldError(fieldName, 'Please enter your name.');
+          return false;
+        }
+
+        if (value.length < 2) {
+          this.showFieldError(
+            fieldName,
+            'Name must be at least 2 characters.'
+          );
+          return false;
+        }
+
+        break;
+
+      case 'email': {
+        if (!value) {
+          this.showFieldError(fieldName, 'Please enter your email.');
+          return false;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!emailRegex.test(value)) {
+          this.showFieldError(
+            fieldName,
+            'Please enter a valid email address.'
+          );
+          return false;
+        }
+
+        break;
+      }
+
+      case 'message':
+        if (!value) {
+          this.showFieldError(fieldName, 'Please enter your message.');
+          return false;
+        }
+
+        if (value.length < 10) {
+          this.showFieldError(
+            fieldName,
+            'Message must be at least 10 characters.'
+          );
+          return false;
+        }
+
+        break;
+    }
+
+    return true;
+  }
+
+  validateForm() {
     let isValid = true;
 
     Object.keys(this.fields).forEach((fieldName) => {
@@ -96,275 +132,206 @@ class ContactForm {
       }
     });
 
-    if (!isValid) return;
+    return isValid;
+  }
 
-    /* Get submit button */
-    const submitButton = this.form.querySelector(
-      'button[type="submit"], input[type="submit"]'
-    );
+  /* ============================================
+     ERROR HANDLING
+  ============================================ */
 
-    if (!submitButton) {
-      console.error('Contact form submit button not found.');
+  showFieldError(fieldName, message) {
+    const field = this.fields[fieldName];
+    const error = this.errors[fieldName];
+
+    if (field) {
+      field.classList.add('error');
+    }
+
+    if (error) {
+      error.textContent = message;
+    }
+  }
+
+  clearFieldError(fieldName) {
+    const field = this.fields[fieldName];
+    const error = this.errors[fieldName];
+
+    if (field) {
+      field.classList.remove('error');
+    }
+
+    if (error) {
+      error.textContent = '';
+    }
+  }
+
+  clearAllErrors() {
+    Object.keys(this.fields).forEach((fieldName) => {
+      this.clearFieldError(fieldName);
+    });
+  }
+
+  /* ============================================
+     FORM SUBMISSION
+  ============================================ */
+
+  async handleSubmit(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.clearAllErrors();
+
+    // Validate before sending
+    if (!this.validateForm()) {
+      this.showToast(
+        'Please correct the highlighted fields.',
+        'error'
+      );
       return;
     }
 
-    const buttonText = submitButton.querySelector('.btn__text');
-
-    /* Save original button text */
-    const originalText = buttonText
-      ? buttonText.textContent
-      : submitButton.value;
-
-    /* Loading state */
-    submitButton.disabled = true;
-    submitButton.classList.add('btn--loading');
-
-    if (buttonText) {
-      buttonText.textContent = 'Sending...';
-    } else if (submitButton.tagName === 'INPUT') {
-      submitButton.value = 'Sending...';
-    }
+    this.setLoading(true);
 
     try {
-      /* ============================================
-         FORMSPREE ENDPOINT
-
-         Replace YOUR_FORM_ID with your actual
-         Formspree form ID.
-
-         Example:
-         https://formspree.io/f/xabcdefg
-      ============================================ */
-
       const response = await fetch(
         'https://formspree.io/f/xaennwbp',
         {
           method: 'POST',
-
           body: new FormData(this.form),
-
           headers: {
-            Accept: 'application/json',
-          },
+            Accept: 'application/json'
+          }
         }
       );
 
-      /* ============================================
-         SUCCESS
-      ============================================ */
-
       if (response.ok) {
         /*
-         * Formspree successfully received the message.
-         * Redirect immediately to index.html.
-         */
+          Store success message temporarily.
+          sessionStorage survives the redirect to index.html.
+        */
+        sessionStorage.setItem(
+          'contactSuccess',
+          'Message sent successfully!'
+        );
 
-        window.location.href = 'index.html';
+        /*
+          Immediately redirect back to the contact section.
+          The user never sees the Formspree page.
+        */
+        window.location.href = 'index.html#contact';
 
         return;
       }
 
-      /* ============================================
-         FORMSPREE ERROR
-      ============================================ */
-
-      const data = await response.json().catch(() => null);
-
+      // Try to read Formspree error response
       let errorMessage =
         'Something went wrong. Please try again.';
 
-      if (data && Array.isArray(data.errors)) {
-        errorMessage = data.errors
-          .map((error) => error.message)
-          .filter(Boolean)
-          .join(', ');
+      try {
+        const data = await response.json();
+
+        if (data?.errors?.length) {
+          errorMessage = data.errors
+            .map((error) => error.message)
+            .join(' ');
+        }
+      } catch (error) {
+        // Ignore JSON parsing errors
       }
 
       this.showToast(errorMessage, 'error');
 
     } catch (error) {
-      /* ============================================
-         NETWORK ERROR
-      ============================================ */
-
       console.error('Contact form error:', error);
 
       this.showToast(
-        'Unable to send your message. Please check your internet connection and try again.',
+        'Unable to send your message. Please check your connection and try again.',
         'error'
       );
 
     } finally {
-      /* Restore button if submission failed */
-      submitButton.disabled = false;
-      submitButton.classList.remove('btn--loading');
-
-      if (buttonText) {
-        buttonText.textContent = originalText;
-      } else if (submitButton.tagName === 'INPUT') {
-        submitButton.value = originalText;
-      }
+      this.setLoading(false);
     }
   }
 
   /* ============================================
-     VALIDATE FIELD
+     SUCCESS MESSAGE AFTER REDIRECT
   ============================================ */
 
-  validateField(fieldName) {
-    const field = this.fields[fieldName];
+  showSuccessFromRedirect() {
+    const message = sessionStorage.getItem('contactSuccess');
 
-    if (!field || !field.input) {
-      return true;
-    }
+    if (!message) return;
 
-    const value = field.input.value.trim();
+    // Remove it immediately so refreshing the page
+    // does not show the message again.
+    sessionStorage.removeItem('contactSuccess');
 
-    switch (fieldName) {
-
-      /* NAME */
-      case 'name':
-
-        if (!value) {
-          this.showError(
-            fieldName,
-            'Please enter your name.'
-          );
-
-          return false;
-        }
-
-        if (value.length < 2) {
-          this.showError(
-            fieldName,
-            'Name must be at least 2 characters.'
-          );
-
-          return false;
-        }
-
-        break;
-
-      /* EMAIL */
-      case 'email':
-
-        if (!value) {
-          this.showError(
-            fieldName,
-            'Please enter your email.'
-          );
-
-          return false;
-        }
-
-        if (!this.isValidEmail(value)) {
-          this.showError(
-            fieldName,
-            'Please enter a valid email address.'
-          );
-
-          return false;
-        }
-
-        break;
-
-      /* MESSAGE */
-      case 'message':
-
-        if (!value) {
-          this.showError(
-            fieldName,
-            'Please enter a message.'
-          );
-
-          return false;
-        }
-
-        if (value.length < 10) {
-          this.showError(
-            fieldName,
-            'Message must be at least 10 characters.'
-          );
-
-          return false;
-        }
-
-        break;
-    }
-
-    this.clearError(fieldName);
-
-    return true;
+    this.showToast(message, 'success');
   }
 
   /* ============================================
-     EMAIL VALIDATION
+     LOADING STATE
   ============================================ */
 
-  isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  }
+  setLoading(isLoading) {
+    if (!this.submitButton) return;
 
-  /* ============================================
-     SHOW FIELD ERROR
-  ============================================ */
+    this.submitButton.disabled = isLoading;
+    this.submitButton.classList.toggle(
+      'is-loading',
+      isLoading
+    );
 
-  showError(fieldName, message) {
-    const field = this.fields[fieldName];
-
-    if (!field) return;
-
-    if (field.input) {
-      field.input.classList.add('form-input--error');
-      field.input.setAttribute('aria-invalid', 'true');
-    }
-
-    if (field.error) {
-      field.error.textContent = message;
+    if (this.buttonText) {
+      this.buttonText.textContent = isLoading
+        ? 'Sending...'
+        : 'Send Message';
     }
   }
 
   /* ============================================
-     CLEAR FIELD ERROR
-  ============================================ */
-
-  clearError(fieldName) {
-    const field = this.fields[fieldName];
-
-    if (!field) return;
-
-    if (field.input) {
-      field.input.classList.remove('form-input--error');
-      field.input.removeAttribute('aria-invalid');
-    }
-
-    if (field.error) {
-      field.error.textContent = '';
-    }
-  }
-
-  /* ============================================
-     SHOW TOAST
+     TOAST NOTIFICATION
   ============================================ */
 
   showToast(message, type = 'success') {
-    if (!this.toast) return;
+    // Remove existing toast
+    const existingToast = document.querySelector('.contact-toast');
 
-    clearTimeout(this.toastTimeout);
+    if (existingToast) {
+      existingToast.remove();
+    }
 
-    this.toast.textContent = message;
+    const toast = document.createElement('div');
 
-    this.toast.className = `toast toast--${type}`;
+    toast.className = `contact-toast contact-toast--${type}`;
+    toast.setAttribute('role', 'alert');
 
-    void this.toast.offsetWidth;
+    const icon = type === 'success' ? '✓' : '!';
+    
+    toast.innerHTML = `
+      <span class="contact-toast__icon">${icon}</span>
+      <span class="contact-toast__message">${message}</span>
+    `;
 
-    this.toast.classList.add('toast--visible');
+    document.body.appendChild(toast);
 
-    this.toastTimeout = setTimeout(() => {
-      this.toast.classList.remove('toast--visible');
-    }, 5000);
+    // Trigger animation
+    requestAnimationFrame(() => {
+      toast.classList.add('is-visible');
+    });
+
+    // Automatically remove after 4 seconds
+    setTimeout(() => {
+      toast.classList.remove('is-visible');
+
+      setTimeout(() => {
+        toast.remove();
+      }, 300);
+    }, 4000);
   }
 }
+
 
 /* ============================================
    INITIALIZE CONTACT FORM
@@ -373,4 +340,3 @@ class ContactForm {
 document.addEventListener('DOMContentLoaded', () => {
   window.contactForm = new ContactForm();
 });
-```
