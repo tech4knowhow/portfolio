@@ -2,6 +2,7 @@
 /* ============================================
    CONTACT FORM
    Formspree AJAX Submission
+   Redirects to index.html after success
    Destination: misganatd7@gmail.com
 ============================================ */
 
@@ -130,7 +131,7 @@ class ContactForm {
       /* ============================================
          FORMSPREE ENDPOINT
 
-         Replace YOUR_FORM_ID with your real
+         Replace YOUR_FORM_ID with your actual
          Formspree form ID.
 
          Example:
@@ -157,15 +158,23 @@ class ContactForm {
       if (response.ok) {
         this.form.reset();
 
-        /* Clear validation states */
+        /* Clear validation errors */
         Object.keys(this.fields).forEach((fieldName) => {
           this.clearError(fieldName);
         });
 
+        /*
+         * Show success message briefly,
+         * then return to index.html.
+         */
         this.showToast(
-          "Message sent successfully! I'll get back to you soon.",
+          'Message sent successfully! Redirecting...',
           'success'
         );
+
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 1200);
 
         return;
       }
@@ -201,10 +210,7 @@ class ContactForm {
       );
 
     } finally {
-      /* ============================================
-         RESTORE BUTTON
-      ============================================ */
-
+      /* Restore button */
       submitButton.disabled = false;
       submitButton.classList.remove('btn--loading');
 
@@ -231,10 +237,7 @@ class ContactForm {
 
     switch (fieldName) {
 
-      /* --------------------------------------------
-         NAME
-      -------------------------------------------- */
-
+      /* NAME */
       case 'name':
 
         if (!value) {
@@ -257,10 +260,7 @@ class ContactForm {
 
         break;
 
-      /* --------------------------------------------
-         EMAIL
-      -------------------------------------------- */
-
+      /* EMAIL */
       case 'email':
 
         if (!value) {
@@ -283,10 +283,7 @@ class ContactForm {
 
         break;
 
-      /* --------------------------------------------
-         MESSAGE
-      -------------------------------------------- */
-
+      /* MESSAGE */
       case 'message':
 
         if (!value) {
@@ -386,7 +383,7 @@ class ContactForm {
 }
 
 /* ============================================
-   INITIALIZE CONTACT FORM
+   INITIALIZE
 ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
