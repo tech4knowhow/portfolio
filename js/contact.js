@@ -171,10 +171,10 @@ class ContactForm {
           'Message sent successfully! Redirecting...',
           'success'
         );
-
-        setTimeout(() => {
+        window.location.href = 'index.html';
+        /*setTimeout(() => {
           window.location.href = 'index.html';
-        }, 1200);
+        }, 1200);*/
 
         return;
       }
