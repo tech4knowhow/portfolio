@@ -1,0 +1,221 @@
+/* ============================================
+   VISUAL EFFECTS
+   Glassmorphism, neon glows, buttons, tags, toast
+============================================ */
+
+/* ---- Glass Panel ---- */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: border-color var(--transition-base),
+              box-shadow var(--transition-base),
+              background var(--transition-base);
+}
+
+.glass-panel:hover {
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-hover);
+}
+
+/* ---- Neon Glow Text ---- */
+.neon-text {
+  color: var(--neon-green);
+  text-shadow: 0 0 7px rgba(0, 255, 136, 0.5),
+               0 0 20px rgba(0, 255, 136, 0.2);
+}
+
+/* ---- Neon Underline Effect ---- */
+.neon-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.neon-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--neon-green);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+  transition: width var(--transition-base);
+}
+
+.neon-underline:hover::after {
+  width: 100%;
+}
+
+/* ---- Pulse Glow Animation ---- */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(0, 255, 136, 0.3),
+                0 0 15px rgba(0, 255, 136, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.5),
+                0 0 40px rgba(0, 255, 136, 0.2);
+  }
+}
+
+/* ---- Floating Animation ---- */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ---- Gradient Border ---- */
+.gradient-border {
+  position: relative;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-purple), var(--neon-blue));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* ---- Tag Pill ---- */
+.tag {
+  display: inline-block;
+  padding: 0.2em 0.7em;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--neon-green);
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  transition: background var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.tag:hover {
+  background: rgba(0, 255, 136, 0.15);
+  border-color: rgba(0, 255, 136, 0.4);
+}
+
+/* ---- Button Styles ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0.8em 2em;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn--primary {
+  color: var(--bg-primary);
+  background: var(--neon-green);
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+}
+
+.btn--primary:hover {
+  background: #33ffaa;
+  box-shadow: 0 0 25px rgba(0, 255, 136, 0.5),
+              0 0 60px rgba(0, 255, 136, 0.2);
+  transform: translateY(-2px);
+  color: var(--bg-primary);
+}
+
+.btn--outline {
+  color: var(--neon-green);
+  background: transparent;
+  border: 2px solid var(--neon-green);
+}
+
+.btn--outline:hover {
+  background: rgba(0, 255, 136, 0.08);
+  box-shadow: var(--glow-green);
+  transform: translateY(-2px);
+  color: var(--neon-green);
+}
+
+.btn--full {
+  width: 100%;
+}
+
+/* ---- Button Loader ---- */
+.btn__loader {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(10, 10, 15, 0.3);
+  border-top-color: var(--bg-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.btn--loading .btn__text {
+  opacity: 0.5;
+}
+
+.btn--loading .btn__loader {
+  display: block;
+  position: absolute;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Toast Notification ---- */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  z-index: 1000;
+  transform: translateY(120%);
+  opacity: 0;
+  transition: transform var(--transition-base), opacity var(--transition-base);
+}
+
+.toast--visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast--success {
+  background: rgba(0, 255, 136, 0.15);
+  border: 1px solid var(--neon-green);
+  color: var(--neon-green);
+  backdrop-filter: blur(10px);
+}
+
+.toast--error {
+  background: rgba(255, 45, 149, 0.15);
+  border: 1px solid var(--neon-pink);
+  color: var(--neon-pink);
+  backdrop-filter: blur(10px);
+}
