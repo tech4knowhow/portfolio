@@ -2,7 +2,7 @@
 /* ============================================
    CONTACT FORM
    Formspree AJAX Submission
-   Redirects to index.html after success
+   Immediate redirect to index.html after success
    Destination: misganatd7@gmail.com
 ============================================ */
 
@@ -96,9 +96,7 @@ class ContactForm {
       }
     });
 
-    if (!isValid) {
-      return;
-    }
+    if (!isValid) return;
 
     /* Get submit button */
     const submitButton = this.form.querySelector(
@@ -156,25 +154,12 @@ class ContactForm {
       ============================================ */
 
       if (response.ok) {
-        this.form.reset();
-
-        /* Clear validation errors */
-        Object.keys(this.fields).forEach((fieldName) => {
-          this.clearError(fieldName);
-        });
-
         /*
-         * Show success message briefly,
-         * then return to index.html.
+         * Formspree successfully received the message.
+         * Redirect immediately to index.html.
          */
-        this.showToast(
-          'Message sent successfully! Redirecting...',
-          'success'
-        );
+
         window.location.href = 'index.html';
-        /*setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 1200);*/
 
         return;
       }
@@ -210,7 +195,7 @@ class ContactForm {
       );
 
     } finally {
-      /* Restore button */
+      /* Restore button if submission failed */
       submitButton.disabled = false;
       submitButton.classList.remove('btn--loading');
 
@@ -371,7 +356,6 @@ class ContactForm {
 
     this.toast.className = `toast toast--${type}`;
 
-    /* Restart animation */
     void this.toast.offsetWidth;
 
     this.toast.classList.add('toast--visible');
@@ -383,7 +367,7 @@ class ContactForm {
 }
 
 /* ============================================
-   INITIALIZE
+   INITIALIZE CONTACT FORM
 ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
