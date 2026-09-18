@@ -1,13 +1,14 @@
 ```javascript
 /* ============================================
    CONTACT FORM
-   Sends messages through Formspree
+   Formspree AJAX Submission
    Destination: misganatd7@gmail.com
 ============================================ */
 
 class ContactForm {
   constructor() {
     this.form = document.getElementById('contact-form');
+
     if (!this.form) return;
 
     this.fields = {
@@ -15,10 +16,12 @@ class ContactForm {
         input: document.getElementById('form-name'),
         error: document.getElementById('form-name-error'),
       },
+
       email: {
         input: document.getElementById('form-email'),
         error: document.getElementById('form-email-error'),
       },
+
       message: {
         input: document.getElementById('form-message'),
         error: document.getElementById('form-message-error'),
@@ -26,230 +29,367 @@ class ContactForm {
     };
 
     this.toast = null;
-    this._init();
+    this.toastTimeout = null;
+
+    this.init();
   }
 
-  _init() {
-    this._createToastElement();
-    this._bindEvents();
+  /* ============================================
+     INITIALIZE
+  ============================================ */
+
+  init() {
+    this.createToast();
+    this.bindEvents();
   }
 
-  /* ---- Create toast container ---- */
-  _createToastElement() {
+  /* ============================================
+     CREATE TOAST
+  ============================================ */
+
+  createToast() {
     this.toast = document.createElement('div');
+
     this.toast.className = 'toast';
     this.toast.setAttribute('role', 'alert');
     this.toast.setAttribute('aria-live', 'polite');
+
     document.body.appendChild(this.toast);
   }
 
-  /* ---- Bind form events ---- */
-  _bindEvents() {
-    this.form.addEventListener('submit', (e) => this._handleSubmit(e));
+  /* ============================================
+     BIND EVENTS
+  ============================================ */
 
-    Object.values(this.fields).forEach(({ input }) => {
-      input.addEventListener('blur', () => {
-        this._validateField(input.name);
+  bindEvents() {
+    this.form.addEventListener('submit', (event) => {
+      this.handleSubmit(event);
+    });
+
+    Object.entries(this.fields).forEach(([fieldName, field]) => {
+      if (!field.input) return;
+
+      field.input.addEventListener('blur', () => {
+        this.validateField(fieldName);
       });
 
-      input.addEventListener('input', () => {
-        this._clearError(input.name);
+      field.input.addEventListener('input', () => {
+        this.clearError(fieldName);
       });
     });
   }
 
-  /* ---- Handle form submission ---- */
-  async _handleSubmit(e) {
-    e.preventDefault();
+  /* ============================================
+     HANDLE FORM SUBMISSION
+  ============================================ */
 
-    // Validate all fields
+  async handleSubmit(event) {
+    event.preventDefault();
+
+    /* Validate all fields */
     let isValid = true;
 
-    for (const fieldName of Object.keys(this.fields)) {
-      if (!this._validateField(fieldName)) {
+    Object.keys(this.fields).forEach((fieldName) => {
+      if (!this.validateField(fieldName)) {
         isValid = false;
       }
+    });
+
+    if (!isValid) {
+      return;
     }
 
-    if (!isValid) return;
+    /* Get submit button */
+    const submitButton = this.form.querySelector(
+      'button[type="submit"], input[type="submit"]'
+    );
 
-    const submitBtn = this.form.querySelector('button[type="submit"]');
-    const btnText = submitBtn.querySelector('.btn__text');
+    if (!submitButton) {
+      console.error('Contact form submit button not found.');
+      return;
+    }
 
-    // Loading state
-    submitBtn.classList.add('btn--loading');
-    submitBtn.disabled = true;
+    const buttonText = submitButton.querySelector('.btn__text');
 
-    if (btnText) {
-      btnText.textContent = 'Sending...';
+    /* Save original button text */
+    const originalText = buttonText
+      ? buttonText.textContent
+      : submitButton.value;
+
+    /* Loading state */
+    submitButton.disabled = true;
+    submitButton.classList.add('btn--loading');
+
+    if (buttonText) {
+      buttonText.textContent = 'Sending...';
+    } else if (submitButton.tagName === 'INPUT') {
+      submitButton.value = 'Sending...';
     }
 
     try {
-      /*
-       * IMPORTANT:
-       * Replace YOUR_FORM_ID with the Formspree
-       * form ID connected to misganatd7@gmail.com.
-       */
+      /* ============================================
+         FORMSPREE ENDPOINT
+
+         Replace YOUR_FORM_ID with your real
+         Formspree form ID.
+
+         Example:
+         https://formspree.io/f/xabcdefg
+      ============================================ */
+
       const response = await fetch(
-        'https://formspree.io/f/YOUR_FORM_ID',
+        'https://formspree.io/f/xaennwbp',
         {
           method: 'POST',
+
           body: new FormData(this.form),
+
           headers: {
             Accept: 'application/json',
           },
         }
       );
 
+      /* ============================================
+         SUCCESS
+      ============================================ */
+
       if (response.ok) {
-        // Successfully sent
         this.form.reset();
 
-        this._showToast(
+        /* Clear validation states */
+        Object.keys(this.fields).forEach((fieldName) => {
+          this.clearError(fieldName);
+        });
+
+        this.showToast(
           "Message sent successfully! I'll get back to you soon.",
           'success'
         );
-      } else {
-        // Formspree returned an error
-        const data = await response.json().catch(() => null);
 
-        const errorMessage =
-          data?.errors?.map(error => error.message).join(', ') ||
-          'Something went wrong. Please try again.';
-
-        this._showToast(errorMessage, 'error');
+        return;
       }
+
+      /* ============================================
+         FORMSPREE ERROR
+      ============================================ */
+
+      const data = await response.json().catch(() => null);
+
+      let errorMessage =
+        'Something went wrong. Please try again.';
+
+      if (data && Array.isArray(data.errors)) {
+        errorMessage = data.errors
+          .map((error) => error.message)
+          .filter(Boolean)
+          .join(', ');
+      }
+
+      this.showToast(errorMessage, 'error');
+
     } catch (error) {
+      /* ============================================
+         NETWORK ERROR
+      ============================================ */
+
       console.error('Contact form error:', error);
 
-      this._showToast(
-        'Unable to send your message. Please try again or email me directly.',
+      this.showToast(
+        'Unable to send your message. Please check your internet connection and try again.',
         'error'
       );
-    } finally {
-      // Restore button
-      submitBtn.classList.remove('btn--loading');
-      submitBtn.disabled = false;
 
-      if (btnText) {
-        btnText.textContent = 'Send Message';
+    } finally {
+      /* ============================================
+         RESTORE BUTTON
+      ============================================ */
+
+      submitButton.disabled = false;
+      submitButton.classList.remove('btn--loading');
+
+      if (buttonText) {
+        buttonText.textContent = originalText;
+      } else if (submitButton.tagName === 'INPUT') {
+        submitButton.value = originalText;
       }
     }
   }
 
-  /* ---- Validate a single field ---- */
-  _validateField(fieldName) {
+  /* ============================================
+     VALIDATE FIELD
+  ============================================ */
+
+  validateField(fieldName) {
     const field = this.fields[fieldName];
 
-    if (!field || !field.input) return true;
+    if (!field || !field.input) {
+      return true;
+    }
 
     const value = field.input.value.trim();
 
     switch (fieldName) {
+
+      /* --------------------------------------------
+         NAME
+      -------------------------------------------- */
+
       case 'name':
+
         if (!value) {
-          this._showError(
+          this.showError(
             fieldName,
             'Please enter your name.'
           );
+
           return false;
         }
 
         if (value.length < 2) {
-          this._showError(
+          this.showError(
             fieldName,
             'Name must be at least 2 characters.'
           );
+
           return false;
         }
 
         break;
 
+      /* --------------------------------------------
+         EMAIL
+      -------------------------------------------- */
+
       case 'email':
+
         if (!value) {
-          this._showError(
+          this.showError(
             fieldName,
             'Please enter your email.'
           );
+
           return false;
         }
 
-        if (!this._isValidEmail(value)) {
-          this._showError(
+        if (!this.isValidEmail(value)) {
+          this.showError(
             fieldName,
             'Please enter a valid email address.'
           );
+
           return false;
         }
 
         break;
 
+      /* --------------------------------------------
+         MESSAGE
+      -------------------------------------------- */
+
       case 'message':
+
         if (!value) {
-          this._showError(
+          this.showError(
             fieldName,
             'Please enter a message.'
           );
+
           return false;
         }
 
         if (value.length < 10) {
-          this._showError(
+          this.showError(
             fieldName,
             'Message must be at least 10 characters.'
           );
+
           return false;
         }
 
         break;
     }
 
-    this._clearError(fieldName);
+    this.clearError(fieldName);
+
     return true;
   }
 
-  /* ---- Email validation ---- */
-  _isValidEmail(email) {
+  /* ============================================
+     EMAIL VALIDATION
+  ============================================ */
+
+  isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
-  /* ---- Show error ---- */
-  _showError(fieldName, message) {
+  /* ============================================
+     SHOW FIELD ERROR
+  ============================================ */
+
+  showError(fieldName, message) {
     const field = this.fields[fieldName];
 
     if (!field) return;
 
-    field.input.classList.add('form-input--error');
-    field.error.textContent = message;
+    if (field.input) {
+      field.input.classList.add('form-input--error');
+      field.input.setAttribute('aria-invalid', 'true');
+    }
+
+    if (field.error) {
+      field.error.textContent = message;
+    }
   }
 
-  /* ---- Clear error ---- */
-  _clearError(fieldName) {
+  /* ============================================
+     CLEAR FIELD ERROR
+  ============================================ */
+
+  clearError(fieldName) {
     const field = this.fields[fieldName];
 
     if (!field) return;
 
-    field.input.classList.remove('form-input--error');
-    field.error.textContent = '';
+    if (field.input) {
+      field.input.classList.remove('form-input--error');
+      field.input.removeAttribute('aria-invalid');
+    }
+
+    if (field.error) {
+      field.error.textContent = '';
+    }
   }
 
-  /* ---- Toast notification ---- */
-  _showToast(message, type = 'success') {
+  /* ============================================
+     SHOW TOAST
+  ============================================ */
+
+  showToast(message, type = 'success') {
+    if (!this.toast) return;
+
+    clearTimeout(this.toastTimeout);
+
     this.toast.textContent = message;
+
     this.toast.className = `toast toast--${type}`;
 
+    /* Restart animation */
     void this.toast.offsetWidth;
 
     this.toast.classList.add('toast--visible');
 
-    clearTimeout(this._toastTimeout);
-
-    this._toastTimeout = setTimeout(() => {
+    this.toastTimeout = setTimeout(() => {
       this.toast.classList.remove('toast--visible');
     }, 5000);
   }
 }
 
-// Export for use in main.js
-window.ContactForm = ContactForm;
+/* ============================================
+   INITIALIZE CONTACT FORM
+============================================ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.contactForm = new ContactForm();
+});
 ```
